@@ -1,0 +1,20 @@
+# name: test/sql/gcs_basic.test
+# description: Basic tests for GCS filesystem
+# group: [sql]
+
+require gcs
+
+require parquet
+
+# Test that extension is loaded correctly
+query I
+SELECT count(*) FROM duckdb_extensions() WHERE extension_name = 'gcs' AND loaded = true;
+----
+1
+
+# Test basic functionality without credentials (should fail with error message)
+statement error
+SELECT count(*) FROM read_parquet('gcss://duckdb-gcs-testing/taxi_2019_04.parquet');
+----
+No valid GCP credentials found
+

@@ -1,0 +1,14 @@
+{
+  "dependencies": [
+    {
+      "name": "google-cloud-cpp",
+      "features": [ "storage" ]
+    },
+    "vcpkg-cmake"
+  ],
+  "vcpkg-configuration": {
+    "overlay-ports": [
+      "./extension-ci-tools/vcpkg_ports"
+    ]
+  }
+}

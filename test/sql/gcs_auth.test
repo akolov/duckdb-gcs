@@ -1,0 +1,19 @@
+# name: test/sql/gcs_auth.test
+# description: Basic tests for GCS filesystem
+# group: [sql]
+
+require gcs
+
+require parquet
+
+require-env GCS_AUTH_AVAILABLE
+
+# Now auth and check that things work
+statement ok
+CREATE SECRET secret (TYPE gcp, PROVIDER credential_chain);
+
+query I
+SELECT count(*) FROM read_parquet('gcss://duckdb-gcs-testing/taxi_2019_04.parquet');
+----
+7433139
+
