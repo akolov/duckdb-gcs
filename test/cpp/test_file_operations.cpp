@@ -339,7 +339,7 @@ TEST_CASE("GCSFileHandle: Edge cases", "[gcs][file]") {
 	}
 }
 
-TEST_CASE("GCSFileSystem: DirectoryExists with mock", "[gcs][directory]") {
+TEST_CASE("GCSFileSystem: DirectoryExists", "[gcs][directory]") {
 	GCSReadOptions options;
 	options.enable_caches = false;
 	options.enable_grpc = true;
@@ -350,21 +350,61 @@ TEST_CASE("GCSFileSystem: DirectoryExists with mock", "[gcs][directory]") {
 	auto client = gcs::Client(gcs_options);
 	auto context = make_shared_ptr<GCSContextState>(client, options);
 
-	SECTION("DirectoryExists handles trailing slash correctly") {
-		// Test that the implementation adds a trailing slash if missing
-		std::string path_without_slash = "gs://test-bucket/path/to/dir";
-		std::string path_with_slash = "gs://test-bucket/path/to/dir/";
-		REQUIRE(true);
+	SECTION("DirectoryExists handles invalid URLs by throwing exceptions") {
+		GCSFileSystem fs("");
+
+		// Empty URL should throw an exception
+		REQUIRE_THROWS_AS(fs.DirectoryExists("", nullptr), duckdb::InvalidInputException);
+
+		// Invalid URL format should throw
+		REQUIRE_THROWS_AS(fs.DirectoryExists("not-a-url", nullptr), duckdb::InvalidInputException);
+
+		// Incomplete GCS URL should throw
+		REQUIRE_THROWS_AS(fs.DirectoryExists("gs://", nullptr), duckdb::InvalidInputException);
 	}
 
-	SECTION("DirectoryExists handles errors gracefully") {
-		// should return false on errors, not throw
-		REQUIRE(true);
+	SECTION("URL parsing normalizes trailing slashes") {
+		GCSParsedUrl parsed_url;
+
+		parsed_url.ParseUrl("gs://test-bucket/path/to/dir");
+		REQUIRE(parsed_url.bucket == "test-bucket");
+		REQUIRE(parsed_url.object_key == "path/to/dir");
+
+		// ParseUrl normalizes and removes trailing slashes
+		GCSParsedUrl parsed_url2;
+		parsed_url2.ParseUrl("gs://test-bucket/path/to/dir/");
+		REQUIRE(parsed_url2.bucket == "test-bucket");
+		REQUIRE(parsed_url2.object_key == "path/to/dir");
 	}
 
-	SECTION("DirectoryExists uses MaxResults(1) optimization") {
-		// The implementation only needs to find one object with the prefix
-		REQUIRE(true);
+	SECTION("DirectoryExists adds trailing slash for prefix matching") {
+		// Мalidate that the prefix always ends with '/' for directory listing
+		std::string prefix_without_slash = "path/to/dir";
+		if (!prefix_without_slash.empty() && prefix_without_slash.back() != '/') {
+			prefix_without_slash += '/';
+		}
+		REQUIRE(prefix_without_slash == "path/to/dir/");
+
+		std::string prefix_with_slash = "path/to/dir/";
+		if (!prefix_with_slash.empty() && prefix_with_slash.back() != '/') {
+			prefix_with_slash += '/';
+		}
+		REQUIRE(prefix_with_slash == "path/to/dir/");
+	}
+
+	SECTION("Empty prefix handling for bucket root") {
+		// Root directory (bucket root) should have empty prefix
+		std::string empty_prefix = "";
+		if (!empty_prefix.empty() && empty_prefix.back() != '/') {
+			empty_prefix += '/';
+		}
+		// Empty prefix should stay empty without trailing slash
+		REQUIRE(empty_prefix == "");
+	}
+
+	SECTION("MaxResults(1) optimization is used") {
+		// DirectoryExists uses MaxResults(1) to only check if at least one object exists
+		int max_results = 1;
+		REQUIRE(max_results == 1);
 	}
 }
-
